@@ -2,33 +2,38 @@ package main
 
 import (
 	"reflect"
-
-	"github.com/google/uuid"
 )
 
 type EventName string
 
-type Tube struct {
-	payloads   map[EventName]reflect.Type
-	registarts map[string]Registar
+type Tuber interface {
+	Register(r *registar)
+	Propagate(regID string, ev EventName, payload interface{})
 }
 
-func (t *Tube) NewRegistar() (Registar, error) {
-	id, err := uuid.NewRandom()
-	if err != nil {
-		return nil, err
+// NewTuber will create a new Tube ready for use
+func NewTuber() Tuber {
+	return &tube{
+		payloads:  make(map[EventName]reflect.Type),
+		registars: make(map[string]*registar),
 	}
-	reg := &registar{
-		Id: id.String(),
+}
+
+type tube struct {
+	payloads  map[EventName]reflect.Type
+	registars map[string]*registar
+}
+
+// Register will let the tube know that the registar wants to be part of the channel
+func (t *tube) Register(r *registar) {
+	t.registars[r.ID] = r
+}
+
+// Propagate will propagate the given event with the payload to all registars that listen to it
+func (t *tube) Propagate(regID string, ev EventName, payload interface{}) {
+	for _, registar := range t.registars {
+		if registar.IsListeningTo(ev) {
+			registar.events[ev](payload)
+		}
 	}
-	t.register(reg)
-	return reg, nil
 }
-
-func (t *Tube) register(r *registar) {
-	t.registarts[r.Id] = r
-}
-
-// type SyncTube struct{}
-
-// type AsyncTube struct{}
